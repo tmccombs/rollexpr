@@ -1,4 +1,10 @@
 {
+    "name": "rollexpr",
+    "version": "0.1.0",
+    "author": "Thayne McCombs <astrothayne@gmail.com>",
+    "description": "Library for evaluating math expressions that can include variables and dice rolls, as often used in table-top rpgs",
+    "keywords": ["dice", "expression", "rpg", "games"],
+    "homepage": "https://github.com/tmccombs/rollexpr",
     "type": "module",
     "license": "Apache-2.0",
     "devDependencies": {
