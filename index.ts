@@ -19,11 +19,12 @@
 interface Context {
     [k: string]: number;
 }
-interface RollResult {
+export interface RollResult {
     rolls: number[];
     die: number;
+    value: number;
 }
-interface Expression {
+export interface Expression {
     calc(context: Context, rolls?: RollResult[]): number;
     simplify(context: Context): Expression;
     toString(): string;
@@ -34,8 +35,19 @@ type Punctuation = Operator | '(' | ')';
 
 type DiceMod = 'h' | 'l';
 
+const precedence = {
+    '+': 0,
+    '-': 0,
+    '*': 1,
+    '/': 1,
+};
+
 class Operation implements Expression {
-    constructor(public op: '+' | '-' | '*' | '/', public left: Expression, public right: Expression) {}
+    constructor(
+        public op: '+' | '-' | '*' | '/',
+        public left: Expression,
+        public right: Expression
+    ) {}
 
     public calc(context: Context, rolls?: RollResult[]): number {
         return this.doOp(this.left.calc(context, rolls), this.right.calc(context, rolls));
@@ -53,17 +65,13 @@ class Operation implements Expression {
 
     public toString(): string {
         let res: string;
-        if (
-            (this.op == '*' || this.op == '/') &&
-            this.left instanceof Operation &&
-            (this.left.op === '+' || this.left.op === '-')
-        ) {
+        if (this.left instanceof Operation && precedence[this.op] > precedence[this.left.op]) {
             res = `(${this.left})`;
         } else {
             res = this.left.toString();
         }
         res += ` ${this.op} `;
-        if (this.right instanceof Operation) {
+        if (this.right instanceof Operation && precedence[this.op] >= precedence[this.right.op]) {
             res += `(${this.right})`;
         } else {
             res += this.right.toString();
@@ -87,23 +95,26 @@ class Operation implements Expression {
 class Roll implements Expression {
     constructor(private dice: number, private sides: number, private mod?: DiceMod) {}
 
-    public calc(_ctx: Context, rollResults: RollResult[]): number {
+    public calc(_ctx: Context, rollResults?: RollResult[]): number {
         const rolls = [];
         for (let i = 0; i < this.dice; i++) {
             rolls.push(this.roll1());
         }
 
-        rollResults.push({
+        let result: number;
+        if (this.mod === 'h') {
+            result = Math.max(...rolls);
+        } else if (this.mod === 'l') {
+            result = Math.min(...rolls);
+        } else {
+            result = rolls.reduce((a, b) => a + b, 0);
+        }
+        rollResults?.push({
             die: this.sides,
             rolls: rolls,
+            value: result,
         });
-        if (this.mod === 'h') {
-            return Math.max(...rolls);
-        } else if (this.mod === 'l') {
-            return Math.min(...rolls);
-        } else {
-            return rolls.reduce((a, b) => a + b, 0);
-        }
+        return result;
     }
 
     public simplify(): Expression {
@@ -164,7 +175,7 @@ type Token = Reference | Literal | Roll | Punctuation;
 
 function* tokenize(expr: string): Iterator<Token> {
     const tokenPattern =
-        /\s*(?:(?<sym>[a-zA-Z_][a-zA-Z-1-9_.]*)|(?<dice>\d+)d(?<sides>\d+)(?<mod>[hl])?|(?<lit>-?\d+(?:.\d+)?)|(?<op>[*/()+-]))/y;
+        /\s*(?:(?<sym>[$a-zA-Z_][a-zA-Z-1-9_.]*)|(?<dice>\d+)d(?<sides>\d+)(?<mod>[hl])?|(?<lit>-?\d+(?:.\d+)?)|(?<op>[*/()+-]))/y;
     const endIdx = expr.length;
     while (tokenPattern.lastIndex < endIdx) {
         const match = tokenPattern.exec(expr);
@@ -215,7 +226,7 @@ class Tokenizer implements Iterator<Token> {
 }
 
 export function parse(input: string): Expression {
-    const tokens = new Tokenizer(input);
+    const tokens = new Tokenizer(input.trim());
     const expr = parseExpr(tokens);
     const { done, value: tok } = tokens.next();
     if (!done) {

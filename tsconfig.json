@@ -2,7 +2,9 @@
     "compilerOptions": {
         "strict": true,
         "module": "es2020",
-        "target": "es2020"
+        "target": "es2020",
+        "outDir": "./dist"
     },
-    "files": ["index.ts"]
+    "files": ["index.ts"],
+    "include": ["test/**/*.ts"]
 }
