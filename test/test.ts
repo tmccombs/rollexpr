@@ -133,4 +133,49 @@ describe('roll', () => {
             },
         ]);
     });
+
+    it('should keep highest with "h"', () => {
+        fakeRandom(0.392, 0.084, 0.301, 0.526, 0.932, 0.102);
+        expect(evalExpr('6d100h')).to.equal(94);
+    });
+
+    it('should keep lowest with "l"', () => {
+        fakeRandom(0.392, 0.084, 0.301, 0.526, 0.932, 0.102);
+        expect(evalExpr('6d100l')).to.equal(9);
+    });
+
+    it('should use sum with no modifier', () => {
+        fakeRandom(0.4, 0.2, 0.9);
+        expect(evalExpr('3d8')).to.equal(4 + 2 + 8);
+    });
+
+    it('should have 1 as a minimum roll value', () => {
+        sinon.replace(Math, 'random', sinon.fake.returns(0));
+        expect(evalExpr('1d2')).to.equal(1);
+        expect(evalExpr('1d10000')).to.equal(1);
+    });
+
+    it('should use the number of sides as the maximum value', () => {
+        sinon.replace(Math, 'random', sinon.fake.returns(1 - Number.EPSILON));
+        for (const i of [2, 8, 4, 100, 1923, 9837234]) {
+            expect(evalExpr(`1d${i}`), `1d${i}`).to.equal(i);
+        }
+    });
+});
+
+describe('simplify', () => {
+    it('should combine number literals', () => {
+        expect(parse('4 + 8').simplify().toString()).to.equal('12');
+        expect(parse(' 1 + 3  + a').simplify().toString()).to.equal('4 + a');
+        expect(parse('a + 2 + 3').simplify().toString()).to.equal('a + 5');
+    });
+
+    it('should substitute values from context', () => {
+        expect(parse('a + b + c').simplify({ a: 1, b: 2 }).toString()).to.equal('3 + c');
+    });
+
+    it('should leave rolls and unspecified variables unchanged', () => {
+        const expr = parse('1d20 + dex');
+        expect(expr.simplify()).to.equal(expr);
+    });
 });

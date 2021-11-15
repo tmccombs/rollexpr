@@ -26,7 +26,7 @@ export interface RollResult {
 }
 export interface Expression {
     calc(context: Context, rolls?: RollResult[]): number;
-    simplify(context: Context): Expression;
+    simplify(context?: Context): Expression;
     toString(): string;
 }
 
@@ -42,6 +42,19 @@ const precedence = {
     '/': 1,
 };
 
+function doOp(op: Operator, left: number, right: number): number {
+    switch (op) {
+        case '+':
+            return left + right;
+        case '-':
+            return left - right;
+        case '*':
+            return left * right;
+        case '/':
+            return left / right;
+    }
+}
+
 class Operation implements Expression {
     constructor(
         public op: '+' | '-' | '*' | '/',
@@ -50,14 +63,30 @@ class Operation implements Expression {
     ) {}
 
     public calc(context: Context, rolls?: RollResult[]): number {
-        return this.doOp(this.left.calc(context, rolls), this.right.calc(context, rolls));
+        return doOp(this.op, this.left.calc(context, rolls), this.right.calc(context, rolls));
     }
 
     public simplify(context: Context): Expression {
         const left = this.left.simplify(context);
         const right = this.right.simplify(context);
+        // TODO: simplify zeros and ones (for multiply/divide)
         if (left instanceof Literal && right instanceof Literal) {
-            return new Literal(this.doOp(left.valueOf(), right.valueOf()));
+            return new Literal(doOp(this.op, left.valueOf(), right.valueOf()));
+        } else if (
+            right instanceof Literal &&
+            left instanceof Operation &&
+            precedence[left.op] === precedence[this.op] &&
+            left.right instanceof Literal
+        ) {
+            return Operation.mergeLeft(
+                left.op,
+                left.right.valueOf(),
+                this.op,
+                right.valueOf(),
+                left.left
+            );
+        } else if (left === this.left && right === this.right) {
+            return this; // Nothing changed so return the same object
         } else {
             return new Operation(this.op, left, right);
         }
@@ -79,16 +108,38 @@ class Operation implements Expression {
         return res;
     }
 
-    private doOp(left: number, right: number): number {
-        switch (this.op) {
-            case '+':
-                return left + right;
-            case '-':
-                return left - right;
-            case '*':
-                return left * right;
-            case '/':
-                return left / right;
+    static mergeLeft(
+        leftOp: Operator,
+        left: number,
+        rightOp: Operator,
+        right: number,
+        farLeft: Expression
+    ): Expression {
+        if (leftOp === rightOp) {
+            if (leftOp === '+' || leftOp == '-') {
+                return new Operation(leftOp, farLeft, new Literal(left + right));
+            } else {
+                return new Operation(leftOp, farLeft, new Literal(left * right));
+            }
+        } else if (left === right) {
+            // the values cancel out, so just return the far left side
+            return farLeft;
+        } else {
+            let op: Operator, bigger: number, smaller: number;
+            if (left > right) {
+                op = leftOp;
+                bigger = left;
+                smaller = right;
+            } else {
+                op = rightOp;
+                bigger = right;
+                smaller = left;
+            }
+            if (op === '+' || op === '-') {
+                return new Operation(op, farLeft, new Literal(bigger - smaller));
+            } else {
+                return new Operation(op, farLeft, new Literal(bigger / smaller));
+            }
         }
     }
 }
@@ -157,8 +208,8 @@ class Reference implements Expression {
         return context[this.ref] ?? 0;
     }
 
-    public simplify(context: Context): Expression {
-        const v = context[this.ref];
+    public simplify(context?: Context): Expression {
+        const v = context?.[this.ref];
         if (typeof v === 'number') {
             return new Literal(v);
         } else {
@@ -230,7 +281,7 @@ export function parse(input: string): Expression {
     const expr = parseExpr(tokens);
     const { done, value: tok } = tokens.next();
     if (!done) {
-        throw new Error(`Unexpected token: ${tok}`);
+        throw new Error(`Unexpected token: ${tok} after ${expr}`);
     }
     return expr;
 }
