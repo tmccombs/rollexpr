@@ -102,6 +102,10 @@ describe('toString', () => {
             expect(parse(input).toString()).to.equal(input);
         });
     }
+
+    it('should normalize whitespace', () => {
+        expect(parse('    a    +\t34\n/2+1d20    ').toString()).to.equal('a + 34 / 2 + 1d20');
+    });
 });
 
 describe('roll', () => {
