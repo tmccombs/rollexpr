@@ -10,6 +10,10 @@ function evalExpr(input: string): number {
     return parse(input).calc({});
 }
 
+function simplifyExpr(input: string): string {
+    return parse(input).simplify().toString();
+}
+
 function parsing(input: string): () => Expression {
     return () => parse(input);
 }
@@ -164,12 +168,6 @@ describe('roll', () => {
 });
 
 describe('simplify', () => {
-    it('should combine number literals', () => {
-        expect(parse('4 + 8').simplify().toString()).to.equal('12');
-        expect(parse(' 1 + 3  + a').simplify().toString()).to.equal('4 + a');
-        expect(parse('a + 2 + 3').simplify().toString()).to.equal('a + 5');
-    });
-
     it('should substitute values from context', () => {
         expect(parse('a + b + c').simplify({ a: 1, b: 2 }).toString()).to.equal('3 + c');
     });
@@ -177,5 +175,44 @@ describe('simplify', () => {
     it('should leave rolls and unspecified variables unchanged', () => {
         const expr = parse('1d20 + dex');
         expect(expr.simplify()).to.equal(expr);
+    });
+
+    it('should combine number literals from left', () => {
+        expect(simplifyExpr('4 + 8')).to.equal('12');
+        expect(simplifyExpr(' 1 + 3  + a')).to.equal('4 + a');
+        expect(simplifyExpr('4 * 2 + a')).to.equal('8 + a');
+        expect(simplifyExpr('4 - 1 + a')).to.equal('3 + a');
+        expect(simplifyExpr('8/2*a')).to.equal('4 * a');
+    });
+
+    it('should combine adjacent literals correctly with different operators of same precedence', () => {
+        expect(simplifyExpr('a + 5 - 2')).to.equal('a + 3');
+        expect(simplifyExpr('a - 3 + 1')).to.equal('a - 2');
+        expect(simplifyExpr('a * 4 / 2')).to.equal('a * 2');
+        expect(simplifyExpr('a / 9 * 3')).to.equal('a / 3');
+
+        expect(simplifyExpr('a + 3 - 4')).to.equal('a - 1');
+        expect(simplifyExpr('a - 1 + 9')).to.equal('a + 8');
+        expect(simplifyExpr('a * 3 / 6')).to.equal('a / 2');
+        expect(simplifyExpr('a / 2 * 8')).to.equal('a * 4');
+    });
+
+    it('should combine adjacent literals correctly with the same operator', () => {
+        expect(simplifyExpr('a + 5 + 2')).to.equal('a + 7');
+        expect(simplifyExpr('a - 3 - 1')).to.equal('a - 4');
+        expect(simplifyExpr('a * 4 * 2')).to.equal('a * 8');
+        expect(simplifyExpr('a / 9 / 3')).to.equal('a / 27');
+    });
+
+    it('should combine adjacent literals in multiple locations', () => {
+        expect(simplifyExpr('1 + 2 * 3 + a - 2 + 4 * 2 + 1d6 * 4 / 2')).to.equal(
+            '7 + a + 6 + 1d6 * 2'
+        );
+    });
+
+    it('should not combine adjacent literals if one binds more closely to a non-literal', () => {
+        expect(simplifyExpr('2 + 3 * a')).to.equal('2 + 3 * a');
+        expect(simplifyExpr('2 + 3 * 1d4')).to.equal('2 + 3 * 1d4');
+        expect(simplifyExpr('a / 2 + 4 - 1')).to.equal('a / 2 + 3');
     });
 });
