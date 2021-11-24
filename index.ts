@@ -4,7 +4,7 @@
  *
  * Tokens (regex):
  *
- * SYMBOL: [a-zA-Z_][a-zA-Z1-9_.]*
+ * SYMBOL: [a-zA-Z_$][a-zA-Z1-9_$.]*
  * ROLL: \d+d\d+[hl]?
  * LITERAL: \d+(.\d+)?
  *
@@ -352,7 +352,7 @@ type Token = Reference | Literal | Roll | Punctuation;
  */
 function* tokenize(expr: string): Iterator<Token> {
     const tokenPattern =
-        /\s*(?:(?<sym>[$a-zA-Z_][a-zA-Z-1-9_.]*)|(?<dice>\d+)d(?<sides>\d+)(?<mod>[hl])?|(?<lit>-?\d+(?:\.\d+)?)|(?<op>[*/()+-]))/y;
+        /\s*(?:(?<sym>[$a-zA-Z_][$a-zA-Z1-9_.]*)|(?<dice>\d+)d(?<sides>\d+)(?<mod>[hl])?|(?<lit>-?\d+(?:\.\d+)?)|(?<op>[*/()+-]))/y;
     const endIdx = expr.length;
     while (tokenPattern.lastIndex < endIdx) {
         const match = tokenPattern.exec(expr);
