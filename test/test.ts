@@ -42,6 +42,8 @@ describe('parse', () => {
             ['1.3', 1.3],
             ['0.5', 0.5],
             ['34.2124', 34.2124],
+            ['-42', -42],
+            ['-0.5', -0.5],
         ];
         for (const [expr, expected] of tests) {
             it(`should parse "${expr}"`, () => {
