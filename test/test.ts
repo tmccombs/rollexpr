@@ -206,6 +206,23 @@ describe('simplify', () => {
         expect(simplifyExpr('a / 9 / 3')).to.equal('a / 27');
     });
 
+    it('should cancel out opposites', () => {
+        expect(simplifyExpr('a + 5 - 5')).to.equal('a');
+        expect(simplifyExpr('a - 5 + 5')).to.equal('a');
+        expect(simplifyExpr('a * 5 / 5')).to.equal('a');
+        expect(simplifyExpr('a / 5 * 5')).to.equal('a');
+    });
+
+    it('should work with negative numbers', () => {
+        expect(simplifyExpr('-3 + 3')).to.equal('0');
+        expect(simplifyExpr('-4 / 2')).to.equal('-2');
+        expect(simplifyExpr('a + -1 - 2')).to.equal('a - 3');
+        expect(simplifyExpr('a * -1 / 3')).to.equal('a / -3');
+        expect(simplifyExpr('a - -3 + -2')).to.equal('a + 1');
+        expect(simplifyExpr('a * 1 / -3')).to.equal('a / -3');
+        expect(simplifyExpr('a + -3')).to.equal('a - 3');
+    });
+
     it('should combine adjacent literals in multiple locations', () => {
         expect(simplifyExpr('1 + 2 * 3 + a - 2 + 4 * 2 + 1d6 * 4 / 2')).to.equal(
             '7 + a + 6 + 1d6 * 2'

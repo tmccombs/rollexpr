@@ -131,6 +131,21 @@ function doOp(op: Operator, left: number, right: number): number {
     }
 }
 
+/**
+ * Change a "+" to a "-" and vice versa
+ */
+function flipOp(op: '+' | '-'): '+' | '-' {
+    return op === '+' ? '-' : '+';
+}
+
+function normalizeOpSign(op: '+' | '-', n: number): ['+' | '-', number] {
+    if (n < 0) {
+        return [flipOp(op), -n];
+    } else {
+        return [op, n];
+    }
+}
+
 /** A binary arithmetic operation */
 class Operation implements Expression {
     /**
@@ -167,6 +182,12 @@ class Operation implements Expression {
                 this.op,
                 right.valueOf()
             );
+        } else if (
+            (this.op === '+' || this.op === '-') &&
+            right instanceof Literal &&
+            right.valueOf() < 0
+        ) {
+            return new Operation(flipOp(this.op), left, new Literal(-right.valueOf()));
         } else if (left === this.left && right === this.right) {
             return this; // Nothing changed so return the same object
         } else {
@@ -211,7 +232,8 @@ class Operation implements Expression {
     ): Expression {
         if (leftOp === rightOp) {
             if (leftOp === '+' || leftOp == '-') {
-                return new Operation(leftOp, farLeft, new Literal(left + right));
+                const [op, value] = normalizeOpSign(leftOp, left + right);
+                return new Operation(op, farLeft, new Literal(value));
             } else {
                 return new Operation(leftOp, farLeft, new Literal(left * right));
             }
@@ -225,7 +247,7 @@ class Operation implements Expression {
             // We use the operator that comes before the larger of the two numbers,
             // and subtracte/divide the bigger number by the smaller number.
             let op: Operator, bigger: number, smaller: number;
-            if (left > right) {
+            if (Math.abs(left) > Math.abs(right)) {
                 op = leftOp;
                 bigger = left;
                 smaller = right;
@@ -235,7 +257,9 @@ class Operation implements Expression {
                 smaller = left;
             }
             if (op === '+' || op === '-') {
-                return new Operation(op, farLeft, new Literal(bigger - smaller));
+                let diff;
+                [op, diff] = normalizeOpSign(op, bigger - smaller);
+                return new Operation(op, farLeft, new Literal(diff));
             } else {
                 return new Operation(op, farLeft, new Literal(bigger / smaller));
             }
